@@ -24,11 +24,13 @@ export default function Chat() {
   } = useChatStore();
 
   const { sendMessage: sendWebSocketMessage, isConnected } = useWebSocket({
-    onMessage: (data) => {
+    onMessage: (data: unknown) => {
       console.log('Received WebSocket message:', data);
       // Handle real-time updates here
-      if (data.type === 'message_update') {
-        // Update message in store
+      if (typeof data === 'object' && data !== null && 'type' in data) {
+        if ((data as any).type === 'message_update') {
+          // Update message in store
+        }
       }
     },
     onConnect: () => {
@@ -38,13 +40,13 @@ export default function Chat() {
       console.log('Disconnected from WebSocket');
     },
     onError: (error) => {
-      console.error('WebSocket error:', error);
+      console.warn('WebSocket connection error:', error);
     },
   });
 
   useEffect(() => {
     if (error) {
-      console.error('Chat error:', error);
+      console.warn('Chat error:', error);
       setTimeout(() => clearError(), 5000);
     }
   }, [error, clearError]);

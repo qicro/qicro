@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Plus, Settings } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function ConversationSidebar() {
   const {
@@ -65,13 +66,15 @@ export default function ConversationSidebar() {
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Conversations</CardTitle>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                New
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New Conversation</DialogTitle>
@@ -115,21 +118,22 @@ export default function ConversationSidebar() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="flex-1 overflow-y-auto space-y-2">
-        {isLoading && conversations.length === 0 ? (
+        {isLoading && (!conversations || conversations.length === 0) ? (
           <div className="text-center text-muted-foreground py-8">
             Loading conversations...
           </div>
-        ) : conversations.length === 0 ? (
+        ) : (!conversations || conversations.length === 0) ? (
           <div className="text-center text-muted-foreground py-8">
             <p>No conversations yet</p>
             <p className="text-sm">Create your first conversation to get started.</p>
           </div>
         ) : (
-          conversations.map((conversation) => (
+          conversations?.map((conversation) => (
             <Card
               key={conversation.id}
               className={`cursor-pointer transition-colors hover:bg-accent ${

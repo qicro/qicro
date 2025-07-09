@@ -5,10 +5,11 @@ import { useAuthStore } from '@/store/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Key, Bot, Tag, LogOut, ArrowLeft } from 'lucide-react';
+import { Settings, Key, Bot, Tag, LogOut, Home } from 'lucide-react';
 import APIKeysManagement from './APIKeysManagement';
 import ChatModelsManagement from './ChatModelsManagement';
 import Link from 'next/link';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuthStore();
@@ -20,30 +21,32 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-card shadow-sm border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center gap-4">
-              <Link href="/chat">
+              <Link href="/">
                 <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  返回聊天
+                  <Home className="h-4 w-4 mr-2" />
+                  返回主页
                 </Button>
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                  <span className="text-primary">Qicro</span>
                   <Settings className="h-6 w-6" />
                   系统管理
                 </h1>
-                <p className="text-sm text-gray-500">Qicro 配置管理中心</p>
+                <p className="text-sm text-muted-foreground">Qicro 配置管理中心</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
               <div className="flex items-center space-x-2">
-                <span className="text-gray-700">{user?.email}</span>
-                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                <span className="text-foreground">{user?.email}</span>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
                   管理员
                 </span>
               </div>
@@ -104,15 +107,15 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">活跃 API Keys</span>
+                  <span className="text-sm text-muted-foreground">活跃 API Keys</span>
                   <span className="font-semibold">5</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">可用模型</span>
+                  <span className="text-sm text-muted-foreground">可用模型</span>
                   <span className="font-semibold">12</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">应用分类</span>
+                  <span className="text-sm text-muted-foreground">应用分类</span>
                   <span className="font-semibold">4</span>
                 </div>
               </CardContent>

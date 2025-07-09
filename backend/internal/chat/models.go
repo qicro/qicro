@@ -25,7 +25,7 @@ type Message struct {
 	ConversationID string                 `json:"conversation_id" db:"conversation_id"`
 	Role           string                 `json:"role" db:"role"`
 	Content        string                 `json:"content" db:"content"`
-	Metadata       map[string]interface{} `json:"metadata" db:"metadata"`
+	Artifacts      map[string]interface{} `json:"artifacts" db:"artifacts"`
 	CreatedAt      time.Time              `json:"created_at" db:"created_at"`
 }
 
@@ -139,13 +139,13 @@ func (r *Repository) DeleteConversation(id string) error {
 
 // CreateMessage 创建消息
 func (r *Repository) CreateMessage(msg *Message) error {
-	metadataJSON, err := json.Marshal(msg.Metadata)
+	metadataJSON, err := json.Marshal(msg.Artifacts)
 	if err != nil {
 		return err
 	}
 
 	query := `
-		INSERT INTO messages (id, conversation_id, role, content, metadata, created_at)
+		INSERT INTO messages (id, conversation_id, role, content, artifacts, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6)`
 
 	_, err = r.db.Exec(query, msg.ID, msg.ConversationID, msg.Role, 
@@ -156,7 +156,7 @@ func (r *Repository) CreateMessage(msg *Message) error {
 // GetMessagesByConversationID 获取对话的消息列表
 func (r *Repository) GetMessagesByConversationID(conversationID string) ([]Message, error) {
 	query := `
-		SELECT id, conversation_id, role, content, metadata, created_at
+		SELECT id, conversation_id, role, content, artifacts, created_at
 		FROM messages 
 		WHERE conversation_id = $1 
 		ORDER BY created_at ASC`
@@ -178,8 +178,8 @@ func (r *Repository) GetMessagesByConversationID(conversationID string) ([]Messa
 			return nil, err
 		}
 
-		if err := json.Unmarshal(metadataJSON, &msg.Metadata); err != nil {
-			msg.Metadata = make(map[string]interface{})
+		if err := json.Unmarshal(metadataJSON, &msg.Artifacts); err != nil {
+			msg.Artifacts = make(map[string]interface{})
 		}
 
 		messages = append(messages, msg)
@@ -216,7 +216,7 @@ func NewMessage(conversationID, role, content string) *Message {
 		ConversationID: conversationID,
 		Role:           role,
 		Content:        content,
-		Metadata:       make(map[string]interface{}),
+		Artifacts:      make(map[string]interface{}),
 		CreatedAt:      time.Now(),
 	}
 }

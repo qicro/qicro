@@ -54,7 +54,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       };
 
       wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.warn('WebSocket error:', error);
         options.onError?.(error);
       };
 

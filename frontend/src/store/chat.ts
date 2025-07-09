@@ -17,6 +17,7 @@ interface ChatState {
   loadModels: () => Promise<void>;
   loadProviders: () => Promise<void>;
   createConversation: (title: string, model: string) => Promise<Conversation>;
+  generateTitle: (conversationId: string, firstMessage: string) => Promise<void>;
   selectConversation: (id: string) => Promise<void>;
   sendMessage: (content: string, stream?: boolean) => Promise<void>;
   sendMessageStream: (content: string) => Promise<void>;
@@ -40,7 +41,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const { conversations } = await chatAPI.getConversations();
-      set({ conversations, isLoading: false });
+      
+      // If no conversations exist, create a default one
+      if (conversations.length === 0) {
+        const { models } = await chatAPI.getModels();
+        const defaultModel = models.length > 0 ? models[0].id : 'gpt-3.5-turbo';
+        const defaultConversation = await chatAPI.createConversation('New Chat', defaultModel);
+        set({ 
+          conversations: [defaultConversation], 
+          currentConversation: defaultConversation,
+          messages: [],
+          isLoading: false 
+        });
+      } else {
+        set({ conversations, isLoading: false });
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to load conversations',
@@ -88,6 +103,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  generateTitle: async (conversationId: string, firstMessage: string) => {
+    try {
+      // Generate a title based on the first message
+      const titlePrompt = `Generate a concise, descriptive title (max 5 words) for a conversation that starts with: "${firstMessage.substring(0, 100)}..."`;
+      
+      // Use a simple approach for now - extract key words or use first few words
+      const words = firstMessage.split(' ').slice(0, 4).join(' ');
+      const title = words.length > 30 ? words.substring(0, 30) + '...' : words;
+      
+      await get().updateConversation(conversationId, { title });
+    } catch (error) {
+      console.error('Failed to generate title:', error);
+      // If title generation fails, use a default
+      await get().updateConversation(conversationId, { title: 'New Chat' });
+    }
+  },
+
   selectConversation: async (id: string) => {
     try {
       set({ isLoading: true, error: null });
@@ -106,11 +138,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendMessage: async (content: string, stream = false) => {
-    const { currentConversation } = get();
+    const { currentConversation, messages } = get();
     if (!currentConversation) {
       set({ error: 'No conversation selected' });
       return;
     }
+
+    // Check if this is the first message and title is still "New Chat"
+    const isFirstMessage = messages.length === 0 && currentConversation.title === 'New Chat';
 
     try {
       set({ isLoading: true, error: null });
@@ -123,11 +158,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
           { content }
         );
         
-        const { messages } = get();
+        const { messages: currentMessages } = get();
         set({
-          messages: [...messages, user_message, assistant_message],
+          messages: [...currentMessages, user_message, assistant_message],
           isLoading: false
         });
+      }
+
+      // Generate title if this is the first message
+      if (isFirstMessage) {
+        await get().generateTitle(currentConversation.id, content);
       }
     } catch (error) {
       set({ 
@@ -144,6 +184,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return;
     }
 
+    // Check if this is the first message and title is still "New Chat"
+    const isFirstMessage = messages.length === 0 && currentConversation.title === 'New Chat';
+
     try {
       set({ isStreaming: true, error: null });
       
@@ -152,7 +195,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
         { content, stream: true }
       );
 
-      let userMessage: ChatMessage | null = null;
       let assistantMessageContent = '';
 
       eventSource.onmessage = (event) => {
@@ -160,7 +202,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
           const data = JSON.parse(event.data);
           
           if (event.lastEventId === 'user_message') {
-            userMessage = data;
             set({ messages: [...messages, data] });
           } else if (event.lastEventId === 'assistant_message') {
             assistantMessageContent += data.message.content;
@@ -191,6 +232,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           } else if (event.lastEventId === 'done') {
             eventSource.close();
             set({ isStreaming: false });
+            
+            // Generate title if this is the first message
+            if (isFirstMessage) {
+              get().generateTitle(currentConversation.id, content);
+            }
           }
         } catch (error) {
           console.error('Error parsing stream data:', error);
