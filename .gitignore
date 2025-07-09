@@ -1,0 +1,146 @@
+# Project-wide ignores
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.log
+*.tmp
+.vscode/
+.idea/
+
+# Backend (Go) specific
+/backend/bin/
+/backend/tmp/
+/backend/vendor/
+/backend/.env
+/backend/*.log
+/backend/coverage.out
+/backend/debug
+/backend/debug.test
+/backend/__debug_bin*
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+go.work.sum
+
+# Frontend (Next.js) specific
+/frontend/node_modules/
+/frontend/.next/
+/frontend/out/
+/frontend/dist/
+/frontend/build/
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+/frontend/.pnpm-debug.log*
+/frontend/.turbo
+
+# Node.js dependencies and logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+.turbo
+
+# Runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+.coverage/
+
+# Editor and IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE_BIN/
+
+# Docker
+.docker/
+.dockerignore
+
+# Temporary directories
+tmp/
+temp/
+.cache/
+
+# Configuration files with secrets
+config/local.yaml
+config/production.yaml
+*.pem
+*.key
+*.crt
+
+# Backup files
+*.bak
+*.backup
+
+# MacOS specific
+.AppleDouble
+.LSOverride
+Icon
+
+# Linux specific
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Windows specific
+Thumbs.db
+ehthumbs.db
+
+# IDE specific
+/.fleet
+/.ijwb
+
+# Compiled binary output
+/backend/server
+/backend/main
