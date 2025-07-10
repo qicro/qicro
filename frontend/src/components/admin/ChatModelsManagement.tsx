@@ -10,8 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Settings } from 'lucide-react';
-import { CreateChatModelRequest } from '@/types/admin';
+import { Plus, Settings, Edit2, Trash2 } from 'lucide-react';
+import { CreateChatModelRequest, UpdateChatModelRequest } from '@/types/admin';
 
 export default function ChatModelsManagement() {
   const {
@@ -22,10 +22,14 @@ export default function ChatModelsManagement() {
     loadChatModels,
     loadAPIKeys,
     createChatModel,
+    updateChatModel,
+    deleteChatModel,
     clearError,
   } = useAdminStore();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingModel, setEditingModel] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>('');
   const [formData, setFormData] = useState<CreateChatModelRequest>({
     type: 'chat',
@@ -40,6 +44,7 @@ export default function ChatModelsManagement() {
     max_context: 4096,
     open: true,
   });
+  const [editFormData, setEditFormData] = useState<UpdateChatModelRequest>({});
 
   useEffect(() => {
     loadChatModels();
@@ -75,9 +80,52 @@ export default function ChatModelsManagement() {
     }
   };
 
+  const handleEdit = (model: any) => {
+    setEditingModel(model.id);
+    setEditFormData({
+      type: model.type,
+      name: model.name,
+      value: model.value,
+      provider: model.provider,
+      sort_num: model.sort_num,
+      enabled: model.enabled,
+      power: model.power,
+      temperature: model.temperature,
+      max_tokens: model.max_tokens,
+      max_context: model.max_context,
+      open: model.open,
+      api_key_id: model.api_key_id,
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingModel) return;
+    
+    try {
+      await updateChatModel(editingModel, editFormData);
+      setEditFormData({});
+      setEditingModel(null);
+      setIsEditOpen(false);
+    } catch (error) {
+      // Error is handled by the store
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('确定要删除这个模型吗？')) {
+      try {
+        await deleteChatModel(id);
+      } catch (error) {
+        // Error is handled by the store
+      }
+    }
+  };
+
   const handleFilterByType = (type: string) => {
     setSelectedType(type);
-    if (type) {
+    if (type && type !== 'all-types') {
       loadChatModels(type);
     } else {
       loadChatModels();
@@ -86,6 +134,10 @@ export default function ChatModelsManagement() {
 
   const availableAPIKeys = apiKeys.filter(key => 
     key.provider === formData.provider && key.enabled
+  );
+  
+  const editAvailableAPIKeys = apiKeys.filter(key => 
+    key.provider === editFormData.provider && key.enabled
   );
 
   return (
@@ -235,14 +287,14 @@ export default function ChatModelsManagement() {
                 <div>
                   <Label htmlFor="api_key_id">关联 API Key</Label>
                   <Select 
-                    value={formData.api_key_id || ''} 
-                    onValueChange={(value) => setFormData({ ...formData, api_key_id: value || undefined })}
+                    value={formData.api_key_id || 'no-selection'} 
+                    onValueChange={(value) => setFormData({ ...formData, api_key_id: value === 'no-selection' ? undefined : value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="选择 API Key (可选)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">不关联</SelectItem>
+                      <SelectItem value="no-selection">不关联</SelectItem>
                       {availableAPIKeys.map((key) => (
                         <SelectItem key={key.id} value={key.id}>
                           {key.name}
@@ -264,6 +316,168 @@ export default function ChatModelsManagement() {
             </form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>编辑模型</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-type">类型</Label>
+                  <Select 
+                    value={editFormData.type || ''} 
+                    onValueChange={(value) => setEditFormData({ ...editFormData, type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="chat">聊天模型</SelectItem>
+                      <SelectItem value="img">图片生成</SelectItem>
+                      <SelectItem value="embedding">嵌入模型</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-provider">提供商</Label>
+                  <Select 
+                    value={editFormData.provider || ''} 
+                    onValueChange={(value) => setEditFormData({ ...editFormData, provider: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择提供商" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="openai">OpenAI</SelectItem>
+                      <SelectItem value="anthropic">Anthropic</SelectItem>
+                      <SelectItem value="google">Google</SelectItem>
+                      <SelectItem value="cohere">Cohere</SelectItem>
+                      <SelectItem value="deepseek">DeepSeek</SelectItem>
+                      <SelectItem value="qwen">通义千问</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-name">显示名称</Label>
+                  <Input
+                    id="edit-name"
+                    value={editFormData.name || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    placeholder="例如: GPT-4 Turbo"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-value">模型值</Label>
+                  <Input
+                    id="edit-value"
+                    value={editFormData.value || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, value: e.target.value })}
+                    placeholder="例如: gpt-4-turbo-preview"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="edit-power">算力消耗</Label>
+                  <Input
+                    id="edit-power"
+                    type="number"
+                    min="1"
+                    value={editFormData.power || 1}
+                    onChange={(e) => setEditFormData({ ...editFormData, power: parseInt(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-sort_num">排序</Label>
+                  <Input
+                    id="edit-sort_num"
+                    type="number"
+                    value={editFormData.sort_num || 0}
+                    onChange={(e) => setEditFormData({ ...editFormData, sort_num: parseInt(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-temperature">创意度</Label>
+                  <Input
+                    id="edit-temperature"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="2"
+                    value={editFormData.temperature || 1.0}
+                    onChange={(e) => setEditFormData({ ...editFormData, temperature: parseFloat(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-max_tokens">最大输出长度</Label>
+                  <Input
+                    id="edit-max_tokens"
+                    type="number"
+                    min="1"
+                    value={editFormData.max_tokens || 1024}
+                    onChange={(e) => setEditFormData({ ...editFormData, max_tokens: parseInt(e.target.value) })}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit-max_context">最大上下文长度</Label>
+                  <Input
+                    id="edit-max_context"
+                    type="number"
+                    min="1"
+                    value={editFormData.max_context || 4096}
+                    onChange={(e) => setEditFormData({ ...editFormData, max_context: parseInt(e.target.value) })}
+                  />
+                </div>
+              </div>
+
+              {editFormData.provider && (
+                <div>
+                  <Label htmlFor="edit-api_key_id">关联 API Key</Label>
+                  <Select 
+                    value={editFormData.api_key_id || 'no-selection'} 
+                    onValueChange={(value) => setEditFormData({ ...editFormData, api_key_id: value === 'no-selection' ? undefined : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="选择 API Key (可选)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no-selection">不关联</SelectItem>
+                      {editAvailableAPIKeys.map((key) => (
+                        <SelectItem key={key.id} value={key.id}>
+                          {key.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsEditOpen(false)}>
+                  取消
+                </Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? '更新中...' : '更新'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {error && (
@@ -279,7 +493,7 @@ export default function ChatModelsManagement() {
             <SelectValue placeholder="所有类型" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">所有类型</SelectItem>
+            <SelectItem value="all-types">所有类型</SelectItem>
             <SelectItem value="chat">聊天模型</SelectItem>
             <SelectItem value="img">图片生成</SelectItem>
             <SelectItem value="embedding">嵌入模型</SelectItem>
@@ -340,9 +554,23 @@ export default function ChatModelsManagement() {
                       T: {model.temperature}, Tokens: {model.max_tokens}
                     </TableCell>
                     <TableCell>
-                      <Button variant="ghost" size="sm">
-                        <Settings className="h-3 w-3" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEdit(model)}
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDelete(model.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

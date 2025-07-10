@@ -2,23 +2,16 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/auth';
 import { Loader2 } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function Home() {
   const router = useRouter();
-  const { user, token } = useAuthStore();
 
   useEffect(() => {
-    // 如果用户已登录，重定向到聊天页面
-    if (token && user) {
-      router.push('/chat');
-    } else {
-      // 否则重定向到认证页面
-      router.push('/auth');
-    }
-  }, [token, user, router]);
+    // 直接重定向到聊天页面
+    router.push('/chat');
+  }, [router]);
 
   // 显示加载状态
   return (

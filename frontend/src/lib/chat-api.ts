@@ -123,25 +123,24 @@ class ChatAPI {
     return response.json();
   }
 
-  async sendMessageStream(conversationId: string, request: ChatRequest): Promise<EventSource> {
+  async sendMessageStream(conversationId: string, request: ChatRequest): Promise<Response> {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const url = new URL(`${API_BASE}/api/conversations/${conversationId}/messages`);
     
-    const eventSource = new EventSource(url.toString());
-    
-    // 发送消息
-    fetch(url.toString(), {
+    const response = await fetch(`${API_BASE}/api/conversations/${conversationId}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),
       },
       body: JSON.stringify({ ...request, stream: true }),
-    }).catch(error => {
-      console.error('Failed to send stream message:', error);
     });
 
-    return eventSource;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to send stream message');
+    }
+
+    return response;
   }
 
   async getMessages(conversationId: string): Promise<{ messages: ChatMessage[] }> {

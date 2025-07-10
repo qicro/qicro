@@ -98,6 +98,27 @@ func (s *Service) GetChatModelsByType(modelType string) ([]ChatModel, error) {
 	return s.repo.GetChatModelsByType(modelType)
 }
 
+func (s *Service) GetChatModelByID(id string) (*ChatModel, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+	return s.repo.GetChatModelByID(id)
+}
+
+func (s *Service) UpdateChatModel(id string, req UpdateChatModelRequest) (*ChatModel, error) {
+	if id == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+	return s.repo.UpdateChatModel(id, req)
+}
+
+func (s *Service) DeleteChatModel(id string) error {
+	if id == "" {
+		return fmt.Errorf("id is required")
+	}
+	return s.repo.DeleteChatModel(id)
+}
+
 func (s *Service) GetAvailableAPIKeyForProvider(provider string) (*APIKey, error) {
 	apiKeys, err := s.repo.GetAPIKeys()
 	if err != nil {

@@ -158,6 +158,48 @@ func (h *Handler) GetChatModels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"models": models})
 }
 
+func (h *Handler) GetChatModel(c *gin.Context) {
+	id := c.Param("id")
+	
+	model, err := h.service.GetChatModelByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, model)
+}
+
+func (h *Handler) UpdateChatModel(c *gin.Context) {
+	id := c.Param("id")
+	
+	var req UpdateChatModelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	model, err := h.service.UpdateChatModel(id, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, model)
+}
+
+func (h *Handler) DeleteChatModel(c *gin.Context) {
+	id := c.Param("id")
+	
+	err := h.service.DeleteChatModel(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Chat model deleted successfully"})
+}
+
 // Admin middleware to check if user is admin
 func (h *Handler) AdminMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {

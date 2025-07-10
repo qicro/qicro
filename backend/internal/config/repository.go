@@ -340,3 +340,135 @@ func (r *Repository) GetChatModelsByType(modelType string) ([]ChatModel, error) 
 
 	return models, nil
 }
+
+func (r *Repository) GetChatModelByID(id string) (*ChatModel, error) {
+	query := `SELECT id, type, name, value, provider, sort_num, enabled, power, temperature, max_tokens, max_context, open, api_key_id, created_at, updated_at
+			  FROM chat_models WHERE id = $1`
+
+	var model ChatModel
+	err := r.db.QueryRow(query, id).Scan(&model.ID, &model.Type, &model.Name, &model.Value, &model.Provider,
+		&model.SortNum, &model.Enabled, &model.Power, &model.Temperature,
+		&model.MaxTokens, &model.MaxContext, &model.Open, &model.APIKeyID,
+		&model.CreatedAt, &model.UpdatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("chat model not found")
+		}
+		return nil, fmt.Errorf("failed to get chat model: %w", err)
+	}
+
+	return &model, nil
+}
+
+func (r *Repository) UpdateChatModel(id string, req UpdateChatModelRequest) (*ChatModel, error) {
+	setParts := []string{}
+	args := []any{}
+	argIndex := 1
+
+	if req.Type != nil {
+		setParts = append(setParts, fmt.Sprintf("type = $%d", argIndex))
+		args = append(args, *req.Type)
+		argIndex++
+	}
+	if req.Name != nil {
+		setParts = append(setParts, fmt.Sprintf("name = $%d", argIndex))
+		args = append(args, *req.Name)
+		argIndex++
+	}
+	if req.Value != nil {
+		setParts = append(setParts, fmt.Sprintf("value = $%d", argIndex))
+		args = append(args, *req.Value)
+		argIndex++
+	}
+	if req.Provider != nil {
+		setParts = append(setParts, fmt.Sprintf("provider = $%d", argIndex))
+		args = append(args, *req.Provider)
+		argIndex++
+	}
+	if req.SortNum != nil {
+		setParts = append(setParts, fmt.Sprintf("sort_num = $%d", argIndex))
+		args = append(args, *req.SortNum)
+		argIndex++
+	}
+	if req.Enabled != nil {
+		setParts = append(setParts, fmt.Sprintf("enabled = $%d", argIndex))
+		args = append(args, *req.Enabled)
+		argIndex++
+	}
+	if req.Power != nil {
+		setParts = append(setParts, fmt.Sprintf("power = $%d", argIndex))
+		args = append(args, *req.Power)
+		argIndex++
+	}
+	if req.Temperature != nil {
+		setParts = append(setParts, fmt.Sprintf("temperature = $%d", argIndex))
+		args = append(args, *req.Temperature)
+		argIndex++
+	}
+	if req.MaxTokens != nil {
+		setParts = append(setParts, fmt.Sprintf("max_tokens = $%d", argIndex))
+		args = append(args, *req.MaxTokens)
+		argIndex++
+	}
+	if req.MaxContext != nil {
+		setParts = append(setParts, fmt.Sprintf("max_context = $%d", argIndex))
+		args = append(args, *req.MaxContext)
+		argIndex++
+	}
+	if req.Open != nil {
+		setParts = append(setParts, fmt.Sprintf("open = $%d", argIndex))
+		args = append(args, *req.Open)
+		argIndex++
+	}
+	if req.APIKeyID != nil {
+		setParts = append(setParts, fmt.Sprintf("api_key_id = $%d", argIndex))
+		args = append(args, *req.APIKeyID)
+		argIndex++
+	}
+
+	if len(setParts) == 0 {
+		return r.GetChatModelByID(id)
+	}
+
+	setParts = append(setParts, fmt.Sprintf("updated_at = $%d", argIndex))
+	args = append(args, time.Now())
+	argIndex++
+
+	args = append(args, id)
+
+	query := fmt.Sprintf(`UPDATE chat_models SET %s WHERE id = $%d
+						  RETURNING id, type, name, value, provider, sort_num, enabled, power, temperature, max_tokens, max_context, open, api_key_id, created_at, updated_at`,
+		strings.Join(setParts, ", "), argIndex)
+
+	var model ChatModel
+	err := r.db.QueryRow(query, args...).Scan(&model.ID, &model.Type, &model.Name, &model.Value, &model.Provider,
+		&model.SortNum, &model.Enabled, &model.Power, &model.Temperature,
+		&model.MaxTokens, &model.MaxContext, &model.Open, &model.APIKeyID,
+		&model.CreatedAt, &model.UpdatedAt)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to update chat model: %w", err)
+	}
+
+	return &model, nil
+}
+
+func (r *Repository) DeleteChatModel(id string) error {
+	query := `DELETE FROM chat_models WHERE id = $1`
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete chat model: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("chat model not found")
+	}
+
+	return nil
+}

@@ -5,7 +5,8 @@ import {
   CreateAPIKeyRequest, 
   UpdateAPIKeyRequest, 
   CreateAppTypeRequest, 
-  CreateChatModelRequest 
+  CreateChatModelRequest,
+  UpdateChatModelRequest
 } from '@/types/admin';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
@@ -149,6 +150,46 @@ class AdminAPI {
     }
 
     return response.json();
+  }
+
+  async getChatModel(id: string): Promise<ChatModel> {
+    const response = await fetch(`${API_BASE}/api/admin/chat-models/${id}`, {
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to get chat model');
+    }
+
+    return response.json();
+  }
+
+  async updateChatModel(id: string, data: UpdateChatModelRequest): Promise<ChatModel> {
+    const response = await fetch(`${API_BASE}/api/admin/chat-models/${id}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update chat model');
+    }
+
+    return response.json();
+  }
+
+  async deleteChatModel(id: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/api/admin/chat-models/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete chat model');
+    }
   }
 }
 

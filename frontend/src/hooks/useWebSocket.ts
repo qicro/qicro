@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuthStore } from '@/store/auth';
 
 interface UseWebSocketOptions {
@@ -14,6 +14,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
+  const [isConnected, setIsConnected] = useState(false);
 
   const connect = useCallback(() => {
     if (!user?.id) return;
@@ -26,6 +27,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       wsRef.current.onopen = () => {
         console.log('WebSocket connected');
         reconnectAttempts.current = 0;
+        setIsConnected(true);
         options.onConnect?.();
       };
 
@@ -40,6 +42,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
       wsRef.current.onclose = (event) => {
         console.log('WebSocket disconnected:', event.code, event.reason);
+        setIsConnected(false);
         options.onDisconnect?.();
 
         // Attempt to reconnect if not manually closed
@@ -61,7 +64,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
     }
-  }, [user?.id, options]);
+  }, [user?.id]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -73,6 +76,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       wsRef.current.close(1000, 'Manual disconnect');
       wsRef.current = null;
     }
+    
+    setIsConnected(false);
   }, []);
 
   const sendMessage = useCallback((message: unknown) => {
@@ -82,8 +87,6 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       console.warn('WebSocket is not connected');
     }
   }, []);
-
-  const isConnected = wsRef.current?.readyState === WebSocket.OPEN;
 
   useEffect(() => {
     connect();

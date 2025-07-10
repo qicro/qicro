@@ -8,6 +8,7 @@ interface ChatState {
   messages: ChatMessage[];
   models: Model[];
   providers: Provider[];
+  selectedModel: string;
   isLoading: boolean;
   isStreaming: boolean;
   error: string | null;
@@ -16,6 +17,7 @@ interface ChatState {
   loadConversations: () => Promise<void>;
   loadModels: () => Promise<void>;
   loadProviders: () => Promise<void>;
+  setSelectedModel: (model: string) => void;
   createConversation: (title: string, model: string) => Promise<Conversation>;
   generateTitle: (conversationId: string, firstMessage: string) => Promise<void>;
   selectConversation: (id: string) => Promise<void>;
@@ -33,6 +35,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   models: [],
   providers: [],
+  selectedModel: '',
   isLoading: false,
   isStreaming: false,
   error: null,
@@ -50,6 +53,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         set({ 
           conversations: [defaultConversation], 
           currentConversation: defaultConversation,
+          selectedModel: defaultConversation.model, // Update selected model to match default conversation
           messages: [],
           isLoading: false 
         });
@@ -68,6 +72,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const { models } = await chatAPI.getModels();
       set({ models });
+      
+      // Set default selected model if none is selected
+      const { selectedModel } = get();
+      if (!selectedModel && models.length > 0) {
+        const validModels = models.filter(model => model.id && model.id.trim() !== '');
+        if (validModels.length > 0) {
+          set({ selectedModel: validModels[0].id });
+        }
+      }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to load models' });
     }
@@ -82,6 +95,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  setSelectedModel: (model: string) => {
+    set({ selectedModel: model });
+    
+    // Update current conversation model if there is one
+    const { currentConversation } = get();
+    if (currentConversation && currentConversation.model !== model) {
+      // Don't await this to avoid blocking the UI
+      get().updateConversation(currentConversation.id, { model }).catch(error => {
+        console.error('Failed to update conversation model:', error);
+      });
+    }
+  },
+
   createConversation: async (title: string, model: string) => {
     try {
       set({ isLoading: true, error: null });
@@ -90,6 +116,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ 
         conversations: [conversation, ...conversations],
         currentConversation: conversation,
+        selectedModel: conversation.model, // Update selected model to match new conversation
         messages: [],
         isLoading: false 
       });
@@ -105,10 +132,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   generateTitle: async (conversationId: string, firstMessage: string) => {
     try {
-      // Generate a title based on the first message
-      const titlePrompt = `Generate a concise, descriptive title (max 5 words) for a conversation that starts with: "${firstMessage.substring(0, 100)}..."`;
-      
-      // Use a simple approach for now - extract key words or use first few words
+      // Use a simple approach - extract key words or use first few words
       const words = firstMessage.split(' ').slice(0, 4).join(' ');
       const title = words.length > 30 ? words.substring(0, 30) + '...' : words;
       
@@ -127,6 +151,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ 
         currentConversation: conversation,
         messages,
+        selectedModel: conversation.model, // Update selected model to match conversation
         isLoading: false 
       });
     } catch (error) {
@@ -143,6 +168,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({ error: 'No conversation selected' });
       return;
     }
+
+    console.log('Sending message:', { content, currentConversation: currentConversation.id, model: currentConversation.model, stream });
 
     // Check if this is the first message and title is still "New Chat"
     const isFirstMessage = messages.length === 0 && currentConversation.title === 'New Chat';
@@ -167,9 +194,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
       // Generate title if this is the first message
       if (isFirstMessage) {
-        await get().generateTitle(currentConversation.id, content);
+        // Don't await title generation to avoid blocking the UI
+        get().generateTitle(currentConversation.id, content).catch(error => {
+          console.error('Failed to generate title:', error);
+        });
       }
     } catch (error) {
+      console.error('Error sending message:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to send message',
         isLoading: false 
@@ -184,78 +215,148 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return;
     }
 
+    console.log('Sending stream message:', { content, currentConversation: currentConversation.id, model: currentConversation.model });
+
     // Check if this is the first message and title is still "New Chat"
     const isFirstMessage = messages.length === 0 && currentConversation.title === 'New Chat';
 
     try {
       set({ isStreaming: true, error: null });
       
-      const eventSource = await chatAPI.sendMessageStream(
+      const response = await chatAPI.sendMessageStream(
         currentConversation.id,
         { content, stream: true }
       );
 
-      let assistantMessageContent = '';
+      console.log('Stream response received:', response.status);
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let currentEventType = '';
+
+      console.log('Debug: Starting to read SSE stream...');
+
+      while (true) {
+        console.log('Debug: Reading next chunk...');
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log('Debug: Stream reading completed');
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        console.log('Debug: Received chunk, buffer length:', buffer.length);
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        console.log('Debug: Processing', lines.length, 'lines');
+        for (const line of lines) {
+          console.log('Debug: Processing line:', `"${line}"`);
+          if (line.trim() === '') {
+            // Empty line indicates end of event - but don't reset currentEventType yet
+            continue;
+          }
           
-          if (event.lastEventId === 'user_message') {
-            set({ messages: [...messages, data] });
-          } else if (event.lastEventId === 'assistant_message') {
-            assistantMessageContent += data.message.content;
+          if (line.startsWith('event:')) {
+            currentEventType = line.slice(6).trim();
+            console.log('Debug: SSE event type:', currentEventType);
+          } else if (line.startsWith('data:')) {
+            const data = line.slice(5).trim();
+            console.log('Debug: SSE data line:', `"${data}"`);
             
-            // 更新流式消息
-            const { messages: currentMessages } = get();
-            const lastMessage = currentMessages[currentMessages.length - 1];
-            
-            if (lastMessage && lastMessage.role === 'assistant') {
-              // 更新现有消息
-              const updatedMessages = [...currentMessages];
-              updatedMessages[updatedMessages.length - 1] = {
-                ...lastMessage,
-                content: assistantMessageContent,
-              };
-              set({ messages: updatedMessages });
-            } else {
-              // 创建新的助手消息
-              const assistantMessage: ChatMessage = {
-                id: data.id,
-                conversation_id: currentConversation.id,
-                role: 'assistant',
-                content: assistantMessageContent,
-                created_at: new Date().toISOString(),
-              };
-              set({ messages: [...currentMessages, assistantMessage] });
-            }
-          } else if (event.lastEventId === 'done') {
-            eventSource.close();
-            set({ isStreaming: false });
-            
-            // Generate title if this is the first message
-            if (isFirstMessage) {
-              get().generateTitle(currentConversation.id, content);
+            try {
+              const eventData = JSON.parse(data);
+              console.log('Debug: SSE data for event type:', currentEventType, eventData);
+              
+              if (currentEventType === 'user_message') {
+                // 添加用户消息到列表
+                const { messages: currentMessages } = get();
+                set({ messages: [...currentMessages, eventData] });
+                console.log('Debug: Added user message');
+              } else if (currentEventType === 'assistant_message') {
+                const { messages: currentMessages } = get();
+                const lastMessage = currentMessages[currentMessages.length - 1];
+                
+                // 检查eventData的结构 - 应该是ChatResponse格式
+                console.log('Debug: Assistant message data structure:', eventData);
+                
+                // 从ChatResponse.message.content获取内容
+                const newContent = eventData.message?.content || '';
+                console.log('Debug: Extracted content:', `"${newContent}"`);
+                
+                // 检查是否stream结束
+                if (eventData.finish_reason === 'stop') {
+                  console.log('Debug: Stream finished with stop reason');
+                  set({ isStreaming: false });
+                }
+                
+                // 只有当有内容时才处理，避免创建空消息
+                if (newContent || eventData.finish_reason === 'stop') {
+                  if (lastMessage && lastMessage.role === 'assistant') {
+                    // 更新现有的助手消息 - 追加新内容实现打字效果
+                    const updatedMessages = [...currentMessages];
+                    updatedMessages[updatedMessages.length - 1] = {
+                      ...lastMessage,
+                      content: lastMessage.content + newContent,
+                    };
+                    set({ messages: updatedMessages });
+                    console.log('Debug: Updated existing assistant message, total content length:', updatedMessages[updatedMessages.length - 1].content.length);
+                  } else if (newContent) {
+                    // 只有当有内容时才创建新的助手消息
+                    const assistantMessage: ChatMessage = {
+                      id: eventData.id || Date.now().toString(),
+                      conversation_id: eventData.conversation_id || currentConversation.id,
+                      role: 'assistant',
+                      content: newContent,
+                      created_at: new Date().toISOString(),
+                    };
+                    set({ messages: [...currentMessages, assistantMessage] });
+                    console.log('Debug: Created new assistant message with content:', `"${newContent}"`);
+                  }
+                } else {
+                  console.log('Debug: Skipping empty content message');
+                }
+              } else if (currentEventType === 'done') {
+                console.log('Debug: Stream completed');
+                set({ isStreaming: false, isLoading: false });
+                break;
+              } else if (currentEventType === 'error') {
+                console.error('Debug: Stream error:', eventData);
+                set({ error: eventData.error, isStreaming: false, isLoading: false });
+                break;
+              }
+              
+              // Reset event type after processing data
+              currentEventType = '';
+            } catch (parseError) {
+              console.error('Error parsing SSE data:', parseError, 'Raw data:', data);
             }
           }
-        } catch (error) {
-          console.error('Error parsing stream data:', error);
         }
-      };
+      }
 
-      eventSource.onerror = (error) => {
-        console.error('EventSource error:', error);
-        eventSource.close();
-        set({ 
-          error: 'Connection error during streaming',
-          isStreaming: false 
+      // Ensure streaming is stopped when loop ends
+      console.log('Debug: Stream reading loop ended, stopping streaming');
+      set({ isStreaming: false, isLoading: false });
+
+      // Generate title if this is the first message
+      if (isFirstMessage) {
+        // Don't await title generation to avoid blocking the UI
+        get().generateTitle(currentConversation.id, content).catch(error => {
+          console.error('Failed to generate title:', error);
         });
-      };
-
+      }
     } catch (error) {
+      console.error('Error in stream message:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to send stream message',
-        isStreaming: false 
+        isStreaming: false,
+        isLoading: false 
       });
     }
   },

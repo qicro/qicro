@@ -127,6 +127,53 @@ func (db *DB) CreateTables() error {
 		}
 	}
 
+	// Clean up duplicate data before adding constraints
+	cleanupQueries := []string{
+		`DELETE FROM app_types WHERE id NOT IN (
+			SELECT MIN(id) FROM app_types GROUP BY name
+		);`,
+		`DELETE FROM api_keys WHERE id NOT IN (
+			SELECT MIN(id) FROM api_keys GROUP BY name, provider
+		);`,
+		`DELETE FROM chat_models WHERE id NOT IN (
+			SELECT MIN(id) FROM chat_models GROUP BY provider, value
+		);`,
+	}
+
+	for _, query := range cleanupQueries {
+		if _, err := db.Exec(query); err != nil {
+			log.Printf("Warning: failed to clean up duplicates: %v", err)
+		}
+	}
+
+	// Add unique constraints if they don't exist
+	constraintQueries := []string{
+		`DO $$ 
+		BEGIN 
+		    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'app_types_name_unique') THEN
+		        ALTER TABLE app_types ADD CONSTRAINT app_types_name_unique UNIQUE (name);
+		    END IF;
+		END $$;`,
+		`DO $$ 
+		BEGIN 
+		    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'api_keys_name_provider_unique') THEN
+		        ALTER TABLE api_keys ADD CONSTRAINT api_keys_name_provider_unique UNIQUE (name, provider);
+		    END IF;
+		END $$;`,
+		`DO $$ 
+		BEGIN 
+		    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chat_models_provider_value_unique') THEN
+		        ALTER TABLE chat_models ADD CONSTRAINT chat_models_provider_value_unique UNIQUE (provider, value);
+		    END IF;
+		END $$;`,
+	}
+
+	for _, query := range constraintQueries {
+		if _, err := db.Exec(query); err != nil {
+			log.Printf("Warning: failed to add constraint: %v", err)
+		}
+	}
+
 	// Insert default app types
 	defaultAppTypes := []string{
 		`INSERT INTO app_types (name, icon, sort_num, enabled) VALUES 
@@ -134,7 +181,7 @@ func (db *DB) CreateTables() error {
 			('角色扮演', '/icons/roleplay.png', 2, true),
 			('学习', '/icons/learning.png', 3, true),
 			('编程', '/icons/coding.png', 4, true)
-		ON CONFLICT DO NOTHING;`,
+		ON CONFLICT (name) DO NOTHING;`,
 	}
 
 	for _, query := range defaultAppTypes {
@@ -148,7 +195,7 @@ func (db *DB) CreateTables() error {
 		`INSERT INTO api_keys (name, value, type, provider, api_url, enabled) VALUES 
 			('Demo OpenAI Key', 'sk-demo-key-placeholder', 'chat', 'openai', 'https://api.openai.com/v1', true),
 			('Demo Anthropic Key', 'sk-ant-demo-key-placeholder', 'chat', 'anthropic', 'https://api.anthropic.com', true)
-		ON CONFLICT DO NOTHING;`,
+		ON CONFLICT (name, provider) DO NOTHING;`,
 	}
 
 	for _, query := range defaultAPIKeys {
@@ -165,7 +212,7 @@ func (db *DB) CreateTables() error {
 			('chat', 'Claude-3.5 Sonnet', 'claude-3-5-sonnet-20240620', 'anthropic', 3, true, 2, 1.0, 4000, 200000, true),
 			('chat', 'GPT-3.5 Turbo', 'gpt-3.5-turbo', 'openai', 4, true, 1, 1.0, 1024, 4096, true),
 			('img', 'DALL-E 3', 'dall-e-3', 'openai', 5, true, 10, 1.0, 1024, 8192, true)
-		ON CONFLICT DO NOTHING;`,
+		ON CONFLICT (provider, value) DO NOTHING;`,
 	}
 
 	for _, query := range defaultModels {

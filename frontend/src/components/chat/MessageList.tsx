@@ -18,7 +18,7 @@ export default function MessageList() {
     scrollToBottom();
   }, [messages]);
 
-  if (messages.length === 0 && !isLoading) {
+  if ((!messages || messages.length === 0) && !isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center text-muted-foreground">
@@ -32,7 +32,7 @@ export default function MessageList() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="space-y-1">
-        {messages.map((message) => (
+        {messages?.map((message) => (
           <MessageBubble key={message.id} message={message} />
         ))}
         

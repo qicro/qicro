@@ -81,3 +81,18 @@ export interface CreateChatModelRequest {
   open?: boolean;
   api_key_id?: string;
 }
+
+export interface UpdateChatModelRequest {
+  type?: string;
+  name?: string;
+  value?: string;
+  provider?: string;
+  sort_num?: number;
+  enabled?: boolean;
+  power?: number;
+  temperature?: number;
+  max_tokens?: number;
+  max_context?: number;
+  open?: boolean;
+  api_key_id?: string;
+}

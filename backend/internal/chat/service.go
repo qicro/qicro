@@ -60,6 +60,11 @@ func (s *Service) GetMessages(conversationID string) ([]Message, error) {
 
 // SendMessage 发送消息
 func (s *Service) SendMessage(ctx context.Context, conversationID, userID, content string) (*Message, *Message, error) {
+	// 检查是否有有效的API提供商
+	if !s.llmService.HasValidProviders() {
+		return nil, nil, fmt.Errorf("no valid API keys configured. Please configure valid API keys in the admin panel to use AI chat functionality")
+	}
+
 	// 获取对话信息
 	conv, err := s.repo.GetConversationByID(conversationID)
 	if err != nil {
@@ -117,6 +122,11 @@ func (s *Service) SendMessage(ctx context.Context, conversationID, userID, conte
 
 // SendMessageStream 发送消息（流式）
 func (s *Service) SendMessageStream(ctx context.Context, conversationID, userID, content string) (*Message, <-chan *llm.ChatResponse, error) {
+	// 检查是否有有效的API提供商
+	if !s.llmService.HasValidProviders() {
+		return nil, nil, fmt.Errorf("no valid API keys configured. Please configure valid API keys in the admin panel to use AI chat functionality")
+	}
+
 	// 获取对话信息
 	conv, err := s.repo.GetConversationByID(conversationID)
 	if err != nil {

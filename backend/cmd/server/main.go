@@ -65,18 +65,20 @@ func main() {
 	configHandler := configManagement.NewHandler(configService)
 
 	// 初始化LLM服务
-	llmService := llm.NewService()
+	llmService := llm.NewService(configService)
 	
-	// 添加OpenAI提供商
-	if cfg.LLM.OpenAI.APIKey != "" {
-		openaiProvider := llm.NewOpenAIProvider(cfg.LLM.OpenAI.APIKey, "")
-		llmService.AddProvider(openaiProvider)
-	}
-	
-	// 添加Anthropic提供商
-	if cfg.LLM.Anthropic.APIKey != "" {
-		anthropicProvider := llm.NewAnthropicProvider(cfg.LLM.Anthropic.APIKey, "")
-		llmService.AddProvider(anthropicProvider)
+	// 从配置系统加载提供商
+	if err := llmService.LoadProvidersFromConfig(); err != nil {
+		log.Printf("Warning: Failed to load providers from config: %v", err)
+		// 如果配置系统加载失败，回退到环境变量
+		if cfg.LLM.OpenAI.APIKey != "" {
+			openaiProvider := llm.NewOpenAIProvider(cfg.LLM.OpenAI.APIKey, "")
+			llmService.AddProvider(openaiProvider)
+		}
+		if cfg.LLM.Anthropic.APIKey != "" {
+			anthropicProvider := llm.NewAnthropicProvider(cfg.LLM.Anthropic.APIKey, "")
+			llmService.AddProvider(anthropicProvider)
+		}
 	}
 	
 	llmHandler := llm.NewHandler(llmService, configService)
@@ -183,6 +185,9 @@ func main() {
 			// Chat Models 管理
 			admin.POST("/chat-models", configHandler.CreateChatModel)
 			admin.GET("/chat-models", configHandler.GetChatModels)
+			admin.GET("/chat-models/:id", configHandler.GetChatModel)
+			admin.PUT("/chat-models/:id", configHandler.UpdateChatModel)
+			admin.DELETE("/chat-models/:id", configHandler.DeleteChatModel)
 		}
 
 		// WebSocket路由

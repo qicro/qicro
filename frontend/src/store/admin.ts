@@ -6,7 +6,8 @@ import {
   CreateAPIKeyRequest, 
   UpdateAPIKeyRequest, 
   CreateAppTypeRequest, 
-  CreateChatModelRequest 
+  CreateChatModelRequest,
+  UpdateChatModelRequest
 } from '@/types/admin';
 import { adminAPI } from '@/lib/admin-api';
 
@@ -30,6 +31,8 @@ interface AdminState {
   // Chat Models
   loadChatModels: (type?: string) => Promise<void>;
   createChatModel: (data: CreateChatModelRequest) => Promise<void>;
+  updateChatModel: (id: string, data: UpdateChatModelRequest) => Promise<void>;
+  deleteChatModel: (id: string) => Promise<void>;
 
   // Utility
   clearError: () => void;
@@ -169,6 +172,42 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to create chat model',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  updateChatModel: async (id: string, data: UpdateChatModelRequest) => {
+    try {
+      set({ isLoading: true, error: null });
+      const updatedModel = await adminAPI.updateChatModel(id, data);
+      const { chatModels } = get();
+      set({ 
+        chatModels: chatModels.map(model => model.id === id ? updatedModel : model),
+        isLoading: false 
+      });
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to update chat model',
+        isLoading: false 
+      });
+      throw error;
+    }
+  },
+
+  deleteChatModel: async (id: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      await adminAPI.deleteChatModel(id);
+      const { chatModels } = get();
+      set({ 
+        chatModels: chatModels.filter(model => model.id !== id),
+        isLoading: false 
+      });
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to delete chat model',
         isLoading: false 
       });
       throw error;

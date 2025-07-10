@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -156,6 +157,9 @@ func (h *Handler) SendMessage(c *gin.Context) {
 		return
 	}
 
+	fmt.Printf("Debug: SendMessage called - ConversationID: %s, UserID: %s, Content: %s, Stream: %t\n", 
+		conversationID, userID.(string), req.Content, req.Stream)
+
 	if req.Stream {
 		h.handleStreamMessage(c, conversationID, userID.(string), req.Content)
 		return
@@ -164,9 +168,12 @@ func (h *Handler) SendMessage(c *gin.Context) {
 	userMessage, assistantMessage, err := h.service.SendMessage(
 		c.Request.Context(), conversationID, userID.(string), req.Content)
 	if err != nil {
+		fmt.Printf("Debug: SendMessage error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	fmt.Printf("Debug: SendMessage success - UserMessage: %+v, AssistantMessage: %+v\n", userMessage, assistantMessage)
 
 	c.JSON(http.StatusOK, gin.H{
 		"user_message":      userMessage,
@@ -176,6 +183,9 @@ func (h *Handler) SendMessage(c *gin.Context) {
 
 // handleStreamMessage 处理流式消息
 func (h *Handler) handleStreamMessage(c *gin.Context, conversationID, userID, content string) {
+	fmt.Printf("Debug: handleStreamMessage called - ConversationID: %s, UserID: %s, Content: %s\n", 
+		conversationID, userID, content)
+	
 	// 设置SSE头部
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
@@ -186,9 +196,12 @@ func (h *Handler) handleStreamMessage(c *gin.Context, conversationID, userID, co
 	userMessage, responseStream, err := h.service.SendMessageStream(
 		c.Request.Context(), conversationID, userID, content)
 	if err != nil {
+		fmt.Printf("Debug: SendMessageStream error: %v\n", err)
 		c.SSEvent("error", gin.H{"error": err.Error()})
 		return
 	}
+
+	fmt.Printf("Debug: SendMessageStream started - UserMessage: %+v\n", userMessage)
 
 	// 发送用户消息
 	c.SSEvent("user_message", userMessage)
@@ -198,14 +211,17 @@ func (h *Handler) handleStreamMessage(c *gin.Context, conversationID, userID, co
 	for response := range responseStream {
 		select {
 		case <-c.Request.Context().Done():
+			fmt.Printf("Debug: Stream context cancelled\n")
 			return
 		default:
+			fmt.Printf("Debug: Stream response: %+v\n", response)
 			c.SSEvent("assistant_message", response)
 			c.Writer.Flush()
 		}
 	}
 
 	// 发送结束标记
+	fmt.Printf("Debug: Stream completed\n")
 	c.SSEvent("done", gin.H{"status": "completed"})
 }
 
