@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { CreateAPIKeyRequest, APIKey } from '@/types/admin';
+import { formatDate } from '@/lib/utils';
 
 export default function APIKeysManagement() {
   const {
@@ -439,7 +440,7 @@ export default function APIKeysManagement() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {apiKey.last_used_at 
-                        ? new Date(apiKey.last_used_at).toLocaleDateString()
+                        ? formatDate(apiKey.last_used_at)
                         : '从未使用'
                       }
                     </TableCell>

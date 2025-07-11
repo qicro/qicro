@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Plus, Settings } from 'lucide-react';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { formatTime } from '@/lib/utils';
 
 export default function ConversationSidebar() {
   const {
@@ -151,7 +152,7 @@ export default function ConversationSidebar() {
                       {conversation.model}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(conversation.updated_at).toLocaleDateString()}
+                      {formatTime(conversation.updated_at)}
                     </p>
                   </div>
                   <Button

@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Send, Loader2 } from 'lucide-react';
 
 interface MessageInputProps {
@@ -52,19 +51,19 @@ export default function MessageInput({
   const isProcessing = isLoading || isStreaming;
 
   return (
-    <div className="border-t bg-background p-4">
-      <Card className="p-4">
+    <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
+      <div className="max-w-4xl mx-auto">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
+          <div className="relative flex items-end gap-3 bg-muted/50 rounded-2xl p-3 border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/30">
+            <div className="flex-1 min-h-0">
               <textarea
                 ref={textareaRef}
                 value={message}
                 onChange={handleTextareaChange}
                 onKeyDown={handleKeyDown}
-                placeholder={isProcessing ? "AI 正在思考中..." : "输入消息..."}
+                placeholder={isProcessing ? "AI 正在思考中..." : "输入消息... (按 Enter 发送，Shift+Enter 换行)"}
                 disabled={disabled || isProcessing}
-                className="w-full min-h-[40px] max-h-[200px] p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary bg-background"
+                className="w-full min-h-[44px] max-h-[200px] bg-transparent resize-none placeholder:text-muted-foreground/70 border-0 focus:outline-none focus:ring-0 text-sm leading-6 py-2 px-0"
                 rows={1}
               />
             </div>
@@ -73,7 +72,7 @@ export default function MessageInput({
               type="submit"
               size="sm"
               disabled={!message.trim() || disabled || isProcessing}
-              className="h-10 w-10 p-0"
+              className="h-10 w-10 p-0 rounded-xl shrink-0 transition-all duration-200 hover:scale-105 disabled:hover:scale-100"
             >
               {isProcessing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -82,8 +81,14 @@ export default function MessageInput({
               )}
             </Button>
           </div>
+          
+          {!disabled && !isProcessing && (
+            <div className="text-xs text-muted-foreground text-center">
+              按 Enter 发送消息，Shift+Enter 换行
+            </div>
+          )}
         </form>
-      </Card>
+      </div>
     </div>
   );
 }
